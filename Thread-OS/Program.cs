@@ -10,6 +10,7 @@ namespace Thread_OS
     {
         static void Main(string[] args)
         {
+            
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
             {
@@ -25,6 +26,7 @@ namespace Thread_OS
                 if (!webElement.Displayed)
                     continue;
                 feed_rows = webElement;
+                break;
             }
             if (feed_rows == null)
                 return;

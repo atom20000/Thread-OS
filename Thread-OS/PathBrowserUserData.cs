@@ -16,9 +16,16 @@ namespace Thread_OS
         /// <param name="name"></param>
         public PathBrowserUserData(string name)
         {
-            string FileText = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), name));
-            this.BrowserPath = JsonConvert.DeserializeObject<PathBrowserUserData>(FileText).BrowserPath;
-            this.User_DataPath = JsonConvert.DeserializeObject<PathBrowserUserData>(FileText).User_DataPath;
+            if (File.Exists((Path.Combine(Directory.GetCurrentDirectory(),name))))
+            {
+                string FileText = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), name));
+                this.BrowserPath = JsonConvert.DeserializeObject<PathBrowserUserData>(FileText).BrowserPath;
+                this.User_DataPath = JsonConvert.DeserializeObject<PathBrowserUserData>(FileText).User_DataPath;
+            }
+            else
+            {
+                this.ToJsonFile(name);
+            }
         }
         public PathBrowserUserData() { }
         /// <summary>
