@@ -14,6 +14,13 @@ namespace Thread_OS
         List<ID_Text_Post> iD_Text_Posts = new List<ID_Text_Post>();
         List<ID_Href_Or_Image_Post> iD_Href_Posts = new List<ID_Href_Or_Image_Post>();
         List<ID_Href_Or_Image_Post> iD_Image_Posts = new List<ID_Href_Or_Image_Post>();
+
+        static object[] lockers = new object[]
+        {
+            new object(),
+            new object(),
+            new object()
+        };
         static void Main(string[] args)
         {
 
@@ -43,7 +50,7 @@ namespace Thread_OS
                                                f.GetAttribute("class").Trim().Equals("feed_row") &&
                                                !(f.FindElement(By.TagName("div")).GetAttribute("id") == "")
                                                select f).ToList();
-
+            #region
             //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
             //{
             //    Name = "File_ID_Text"
@@ -60,6 +67,7 @@ namespace Thread_OS
             //    Name = "File_ID_Image"
             //};
             //thread_Image_file.Start();
+            #endregion
 
         }
         private static void WriteinFile<T>(string path, List<T> objects)
@@ -126,5 +134,11 @@ namespace Thread_OS
 
             })
             { Name = "Sort_Image" };
+        private Thread Thread_Yub_four() =>
+            new Thread(() =>
+            {
+
+            })
+            {Name="Write_File" };
     }
 }
