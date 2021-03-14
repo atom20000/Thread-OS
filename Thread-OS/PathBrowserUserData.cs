@@ -23,9 +23,7 @@ namespace Thread_OS
                 this.User_DataPath = JsonConvert.DeserializeObject<PathBrowserUserData>(FileText).User_DataPath;
             }
             else
-            {
                 this.ToJsonFile(name);
-            }
         }
         public PathBrowserUserData() { }
         /// <summary>
