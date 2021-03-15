@@ -37,6 +37,7 @@ namespace Thread_OS
             this.Image_Href_Parse(feed_row, Tag_1, Attribute_1);
             this.Image_Parse(feed_row, Tag_2, Attribute_2);
         }
+        public ID_Href_Or_Image_Post() { }
         private void Image_Href_Parse(IWebElement feed_row, string Tag, string Attribute)=>
             this.HrefOrImage.AddRange(from f in feed_row.FindElements(By.TagName(Tag))
                                       where !(f.GetAttribute(Attribute) == null || f.GetAttribute(Attribute) == "")
