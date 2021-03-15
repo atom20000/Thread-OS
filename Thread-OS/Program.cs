@@ -11,23 +11,29 @@ namespace Thread_OS
 {
     class Program
     {
-        static List<ID_Text_Post> iD_Text_Posts = new List<ID_Text_Post>();
-        static List<ID_Href_Or_Image_Post> iD_Href_Posts = new List<ID_Href_Or_Image_Post>();
-        static List<ID_Href_Or_Image_Post> iD_Image_Posts = new List<ID_Href_Or_Image_Post>();
-
-        static object[] lockers = new object[]
+        static readonly object[] lockers = new object[]
         {
             new object(),
             new object(),
             new object()
         };
-        static Thread thread_text = new Thread(new ParameterizedThreadStart(Thread_Text_File)) { Name = "Sort_Text" };
-        static Thread thread_href = new Thread(new ParameterizedThreadStart(Thread_Href_File)) { Name = "Sort_Href" };
-        static Thread thread_image = new Thread(new ParameterizedThreadStart(Thread_Image_File)) { Name = "Sort_Image" };
-        static List<IWebElement> feed_row_list;
+        static readonly string[] path_file = new string[]
+        {
+            "ID_Text_Posts.json",
+            "ID_Href_Posts.json",
+            "ID_Image_Posts.json"
+        };
+        static Thread thread_text;
+        static Thread thread_href;
+        static Thread thread_image;
+        static Thread thread_post;
+        static Thread thread_read;
+
+        
+
         static void Main(string[] args)
         {
-
+            #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
             {
@@ -37,26 +43,15 @@ namespace Thread_OS
             options.AddArgument(pathBrowserUserData.User_DataPath);
             ChromeDriver chromeDriver = new ChromeDriver(options);
             chromeDriver.Navigate().GoToUrl("https://vk.com/feed");
-
-            //for (int i = 0; i < 1; i++)
-            //{
-                IWebElement feed_rows = null;
-                foreach (IWebElement webElement in chromeDriver.FindElementsById("feed_rows").ToList())
-                {
-                    if (!webElement.Displayed)
-                        continue;
-                    feed_rows = webElement;
-                    break;
-                }
-                if (feed_rows == null)
-                    return;
-                 feed_row_list = (from f in feed_rows.FindElements(By.TagName("div"))
-                                  where f.Displayed &&
-                                  !(f.GetAttribute("class") == null) &&
-                                  f.GetAttribute("class").Trim().Equals("feed_row") &&
-                                  !f.FindElement(By.TagName("div")).GetAttribute("id").Equals("")
-                                  select f).ToList();
-                #region
+            #endregion
+            for (int i = 0; i < 2; i++)
+            {
+                thread_post = Thread_Post(chromeDriver);
+                thread_post.Start();
+                thread_post.Join();
+            //hromeDriver.Navigate().Refresh();
+            }
+            #region
                 //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
                 //{
                 //    Name = "File_ID_Text"
@@ -74,11 +69,6 @@ namespace Thread_OS
                 //};
                 //thread_Image_file.Start();
                 #endregion
-                thread_text.Start(new List<IWebElement>(feed_row_list));
-                thread_href.Start(new List<IWebElement>(feed_row_list));
-                thread_image.Start(new List<IWebElement>(feed_row_list));
-                //hromeDriver.Navigate().Refresh();
-            //}
         }
         private static void WriteinFile<T>(string path, List<T> objects)
         {
@@ -92,21 +82,26 @@ namespace Thread_OS
         }
         private static void ReadinFile<T>(string path, out List<T> objects)
         {
-            using (StreamReader file = new StreamReader(path))
-            {
-                objects = JsonConvert.DeserializeObject<List<T>>(file.ReadToEnd());
-                file.Close();
-                file.Dispose();
-            }
+            if (File.Exists(path))
+                using (StreamReader file = new StreamReader(path))
+                {
+                    objects = JsonConvert.DeserializeObject<List<T>>(file.ReadToEnd());
+                    file.Close();
+                    file.Dispose();
+                }
+            else
+                objects = new List<T>();
         }
-        private static void Thread_Text_File(object feed_row_list)
+        private static Thread Thread_Text_File(object feed_row_list) =>
+            new Thread(() =>
             {
-                ReadinFile<ID_Text_Post>("ID_Text_Posts.json", out iD_Text_Posts);
+                List<ID_Text_Post> iD_Text_Posts;
+                ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
                     id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (!iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                    if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
                         continue;
                     try
                     {
@@ -117,60 +112,94 @@ namespace Thread_OS
                         iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
                     }
                 }
-                WriteinFile("ID_Text_Posts.json", iD_Text_Posts);
+                WriteinFile("ID_Text_Posts.json", new List<ID_Text_Post>(iD_Text_Posts));
                 iD_Text_Posts.Clear();
-            }
-        private static void Thread_Href_File(object feed_row_list)
+            })
+            { Name = "Sort_Text" };
+        private static Thread Thread_Href_File(object feed_row_list)=>
+            new Thread(()=>
             {
-                ReadinFile<ID_Href_Or_Image_Post>("ID_Href_Posts.json", out iD_Href_Posts);
+                List<ID_Href_Or_Image_Post> iD_Href_Posts;
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
                     id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (!iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                    if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
                         continue;
                     iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
-                WriteinFile("ID_Href_Posts.json", iD_Href_Posts);
+                WriteinFile("ID_Href_Posts.json", new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 iD_Href_Posts.Clear();
-            }
-        private static void Thread_Image_File(object feed_row_list)
+            })
+            { Name = "Sort_Href" };
+        private static Thread Thread_Image_File(object feed_row_list)=>
+            new Thread(()=>
             {
-                ReadinFile<ID_Href_Or_Image_Post>("ID_Image_Posts.json", out iD_Image_Posts);
+                List<ID_Href_Or_Image_Post> iD_Image_Posts;
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
                     id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (!iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                    if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
                         continue;
                     iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                 }
-                WriteinFile("ID_Image_Posts.json", iD_Image_Posts);
+                WriteinFile("ID_Image_Posts.json", new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 iD_Image_Posts.Clear();
-            }
-        private static void Thread_Post(object chromeDriver)
-        {
-            IWebElement feed_rows = null;
-            foreach (IWebElement webElement in (chromeDriver as ChromeDriver).FindElementsById("feed_rows").ToList())
+            })
+            { Name = "Sort_Image" };
+        private static Thread Thread_Post(object chromeDriver)=>
+            new Thread(()=>
             {
-                if (!webElement.Displayed)
-                    continue;
-                feed_rows = webElement;
-                break;
-            }
-            if (feed_rows == null)
-                return;
-            feed_row_list = (from f in feed_rows.FindElements(By.TagName("div"))
-                             where f.Displayed &&
-                             !(f.GetAttribute("class") == null) &&
-                             f.GetAttribute("class").Trim().Equals("feed_row") &&
-                             !f.FindElement(By.TagName("div")).GetAttribute("id").Equals("")
-                             select f).ToList();
-        }
-        private static void Thread_()
+                thread_read = Thread_Read();
+                thread_read.Start();
+                IWebElement feed_rows = null;
+                List<IWebElement> feed_row_list;
+                foreach (IWebElement webElement in (chromeDriver as ChromeDriver).FindElementsById("feed_rows").ToList())
+                {
+                    if (!webElement.Displayed)
+                        continue;
+                    feed_rows = webElement;
+                    break;
+                }
+                if (feed_rows == null)
+                    return;
+                feed_row_list = (from f in feed_rows.FindElements(By.TagName("div"))
+                                 where f.Displayed &&
+                                 !(f.GetAttribute("class") == null) &&
+                                 f.GetAttribute("class").Trim().Equals("feed_row") &&
+                                 !f.FindElement(By.TagName("div")).GetAttribute("id").Equals("")
+                                 select f).ToList();
+                thread_read.Join();
+                thread_text = Thread_Text_File(new List<IWebElement>(feed_row_list));
+                thread_text.Start();
+                thread_href = Thread_Href_File(new List<IWebElement>(feed_row_list));
+                thread_href.Start();
+                thread_image = Thread_Image_File(new List<IWebElement>(feed_row_list));
+                thread_image.Start();
+                thread_text.Join();
+                thread_href.Join();
+                thread_image.Join();
+                (chromeDriver as ChromeDriver).Navigate().Refresh();
+        })
+        { Name = "Find_Post" };
+        private static Thread Thread_Read()=>
+            new Thread(()=>
             {
-
-            }
-            //{Name="Write_File" };
+                foreach (string path in path_file)
+                {
+                    Console.WriteLine($"Данные из документа {path}");
+                    if (File.Exists(path))
+                        using (StreamReader file = new StreamReader(path))
+                        {
+                            Console.WriteLine(file.ReadToEnd());
+                            file.Close();
+                            file.Dispose();
+                        }
+                }
+            })
+            { Name = "Read_File" };
     }
 }

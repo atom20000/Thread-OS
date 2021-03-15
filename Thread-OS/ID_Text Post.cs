@@ -16,5 +16,6 @@ namespace Thread_OS
         public ID_Text_Post() { }
         //public string ID_TextPostToJson() =>
         //    JsonConvert.SerializeObject(this);
+
     }
 }
