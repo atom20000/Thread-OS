@@ -32,7 +32,7 @@ namespace Service_read_file_parser
             eventLogService.WriteEntry("Service start", EventLogEntryType.Information);
             System.Timers.Timer timer = new System.Timers.Timer()
             {
-                Interval = 1000               
+                Interval = 5000               
             };
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
@@ -48,13 +48,12 @@ namespace Service_read_file_parser
             eventLogService.WriteEntry("Monitoring the System", EventLogEntryType.Information, eventId++);
             try
             {
-                eventLogService.WriteEntry(Mutex.OpenExisting("File_Id_Text").ToString(), EventLogEntryType.Information, eventId); 
+                eventLogService.WriteEntry(Mutex.OpenExisting(@"Global\ test").ToString(), EventLogEntryType.Information, eventId);// удалить
             }
             catch (Exception ex)
             {
                 eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
             }
-        }
-           
+        }    
     }
 }

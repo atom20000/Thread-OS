@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Threading;
 using System.IO.MemoryMappedFiles;
+using System.ServiceProcess;
 
 namespace Thread_OS
 {
@@ -18,6 +19,7 @@ namespace Thread_OS
             new Mutex(false,"File_Id_Href"),
             new Mutex(false,"File_Id_Image")
         };
+        static public Mutex testMutex = new Mutex(false, @"Global\ test");// удалить 
         static readonly string[] path_file = new string[]
         {
             "ID_Text_Posts.json",
@@ -32,6 +34,7 @@ namespace Thread_OS
 
         static void Main(string[] args)
         {
+            StartService("Service_read_file");
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -50,6 +53,7 @@ namespace Thread_OS
                 thread_post.Join();
                 //chromeDriver.Navigate().Refresh();
             }
+            StopService("Service_read_file");
             #region
                 //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
                 //{
@@ -209,5 +213,18 @@ namespace Thread_OS
                 }
             })
             { Name = "Read_File" };
+        private static void StartService(string serviceName)
+        {
+            ServiceController service = new ServiceController(serviceName);
+            if(service.Status == ServiceControllerStatus.Running)
+                service.Stop();
+            service.Start();
+        }
+        private static void StopService(string serviceName)
+        {
+            ServiceController service = new ServiceController(serviceName);
+            if(service.Status != ServiceControllerStatus.Stopped)
+                service.Stop();
+        }
     }
 }
