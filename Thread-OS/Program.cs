@@ -6,16 +6,17 @@ using OpenQA.Selenium.Chrome;
 using Newtonsoft.Json;
 using System.IO;
 using System.Threading;
+using System.IO.MemoryMappedFiles;
 
 namespace Thread_OS
 {
     class Program
     {
-        static readonly object[] lockers = new object[]
+        static public readonly Mutex[] mutex = new Mutex[]
         {
-            new object(),
-            new object(),
-            new object()
+            new Mutex(false,"File_Id_Text"),
+            new Mutex(false,"File_Id_Href"),
+            new Mutex(false,"File_Id_Image")
         };
         static readonly string[] path_file = new string[]
         {
@@ -28,8 +29,6 @@ namespace Thread_OS
         static Thread thread_image;
         static Thread thread_post;
         static Thread thread_read;
-
-        
 
         static void Main(string[] args)
         {
@@ -49,7 +48,7 @@ namespace Thread_OS
                 thread_post = Thread_Post(chromeDriver);
                 thread_post.Start();
                 thread_post.Join();
-            //hromeDriver.Navigate().Refresh();
+                //chromeDriver.Navigate().Refresh();
             }
             #region
                 //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
@@ -95,6 +94,7 @@ namespace Thread_OS
         private static Thread Thread_Text_File(object feed_row_list) =>
             new Thread(() =>
             {
+                mutex[0].WaitOne();
                 List<ID_Text_Post> iD_Text_Posts;
                 ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
                 string id_post;
@@ -114,11 +114,13 @@ namespace Thread_OS
                 }
                 WriteinFile("ID_Text_Posts.json", new List<ID_Text_Post>(iD_Text_Posts));
                 iD_Text_Posts.Clear();
+                mutex[0].ReleaseMutex();
             })
             { Name = "Sort_Text" };
         private static Thread Thread_Href_File(object feed_row_list)=>
             new Thread(()=>
             {
+                mutex[1].WaitOne();
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
                 string id_post;
@@ -131,11 +133,13 @@ namespace Thread_OS
                 }
                 WriteinFile("ID_Href_Posts.json", new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 iD_Href_Posts.Clear();
+                mutex[1].ReleaseMutex();
             })
             { Name = "Sort_Href" };
         private static Thread Thread_Image_File(object feed_row_list)=>
             new Thread(()=>
             {
+                mutex[2].WaitOne();
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
                 string id_post;
@@ -148,6 +152,7 @@ namespace Thread_OS
                 }
                 WriteinFile("ID_Image_Posts.json", new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 iD_Image_Posts.Clear();
+                mutex[2].ReleaseMutex();
             })
             { Name = "Sort_Image" };
         private static Thread Thread_Post(object chromeDriver)=>
@@ -172,7 +177,6 @@ namespace Thread_OS
                                  f.GetAttribute("class").Trim().Equals("feed_row") &&
                                  !f.FindElement(By.TagName("div")).GetAttribute("id").Equals("")
                                  select f).ToList();
-                thread_read.Join();
                 thread_text = Thread_Text_File(new List<IWebElement>(feed_row_list));
                 thread_text.Start();
                 thread_href = Thread_Href_File(new List<IWebElement>(feed_row_list));
@@ -188,16 +192,20 @@ namespace Thread_OS
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                foreach (string path in path_file)
+                mutex[0].WaitOne();
+                mutex[1].WaitOne();
+                mutex[2].WaitOne();
+                for(int i = 0; i<3; i++) //foreach (string path in path_file)
                 {
-                    Console.WriteLine($"Данные из документа {path}");
-                    if (File.Exists(path))
-                        using (StreamReader file = new StreamReader(path))
+                    Console.WriteLine($"Данные из документа {path_file[i]}");
+                    if (File.Exists(path_file[i]))
+                        using (StreamReader file = new StreamReader(path_file[i]))
                         {
                             Console.WriteLine(file.ReadToEnd());
                             file.Close();
                             file.Dispose();
                         }
+                    mutex[i].ReleaseMutex();
                 }
             })
             { Name = "Read_File" };
