@@ -15,16 +15,15 @@ namespace Thread_OS
     {
         static public readonly Mutex[] mutex = new Mutex[]
         {
-            new Mutex(false,"File_Id_Text"),
-            new Mutex(false,"File_Id_Href"),
-            new Mutex(false,"File_Id_Image")
+            new Mutex(false,@"Global\ File_Id_Text"),
+            new Mutex(false,@"Global\ File_Id_Href"),
+            new Mutex(false,@"Global\ File_Id_Image")
         };
-        static public Mutex testMutex = new Mutex(false, @"Global\ test");// удалить 
         static readonly string[] path_file = new string[]
         {
-            "ID_Text_Posts.json",
-            "ID_Href_Posts.json",
-            "ID_Image_Posts.json"
+            Path.Combine(Directory.GetCurrentDirectory(),"ID_Text_Posts.json"),
+            Path.Combine(Directory.GetCurrentDirectory(),"ID_Href_Posts.json"),
+            Path.Combine(Directory.GetCurrentDirectory(),"ID_Image_Posts.json")
         };
         static Thread thread_text;
         static Thread thread_href;
@@ -34,6 +33,19 @@ namespace Thread_OS
 
         static void Main(string[] args)
         {
+            #region Shared Memory
+            //using (MemoryMappedFile mmf = MemoryMappedFile.CreateNew(@"Global\ Path_file", 1000))
+            //{
+            //    using (MemoryMappedViewStream stream = mmf.CreateViewStream())
+            //    {
+            //        BinaryWriter writer = new BinaryWriter(stream);
+            //        foreach(string path in path_file)
+            //        {
+            //            writer.Write(path);
+            //        }
+            //    }
+            //}
+            #endregion
             StartService("Service_read_file");
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
