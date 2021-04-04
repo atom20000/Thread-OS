@@ -17,7 +17,7 @@ namespace Service_read_file_parser
     public partial class Service_read_file : ServiceBase
     {
         private int eventId = 1;
-        static public Mutex[] mutex = new Mutex[]
+        public Mutex[] mutex = new Mutex[]
         {
             new Mutex(),
             new Mutex(),
@@ -29,10 +29,16 @@ namespace Service_read_file_parser
             @"Global\ File_Id_Href",
             @"Global\ File_Id_Image"
         };
-        static string[] path_file = new string[3];
-        static Thread thread_text;
-        static Thread thread_href;
-        static Thread thread_image;
+        string[] path_file = new string[]
+        {
+            @"G:\Репозитории\Thread-OS\Thread-OS\bin\Debug\netcoreapp3.1\ID_Text_Posts.json",
+            @"G:\Репозитории\Thread-OS\Thread-OS\bin\Debug\netcoreapp3.1\ID_Href_Posts.json",
+            @"G:\Репозитории\Thread-OS\Thread-OS\bin\Debug\netcoreapp3.1\ID_Image_Posts.json"
+        };
+        //static Thread[] threads = new Thread[3];
+        //static Thread thread_text;
+        //static Thread thread_href;
+        //static Thread thread_image;
         public Service_read_file()
         {
             InitializeComponent();
@@ -83,14 +89,16 @@ namespace Service_read_file_parser
         }
         private void OnTimer(object sender, ElapsedEventArgs args)
         { 
-            //eventLogService.WriteEntry("Monitoring the System", EventLogEntryType.Information, eventId++);
+            eventLogService.WriteEntry("Monitoring the System", EventLogEntryType.Information, eventId++);
+            if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+                return;
             try
             {
                 for(int i = 0; i < mutex_name.Length; i++)
                 {
                     mutex[i] = Mutex.OpenExisting(mutex_name[i]);
-                    eventLogService.WriteEntry(mutex[i].ToString(), EventLogEntryType.Information, eventId);// удалить
-
+                    //eventLogService.WriteEntry(mutex[i].ToString(), EventLogEntryType.Information, eventId);// удалить
+                    Thread_Read(mutex[i], path_file[i]).Start();
                 }  
             }
             catch (Exception ex)
@@ -98,17 +106,24 @@ namespace Service_read_file_parser
                 eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
             }
         }
-        private static Thread Thread_Read(Mutex mutex, string path) =>
+        private  Thread Thread_Read(Mutex mutex, string path) =>
            new Thread(() =>
            {
                mutex.WaitOne();
-               if (File.Exists(path))
-                   using (StreamReader file = new StreamReader(path))
-                   {
-                       Console.WriteLine(file.ReadToEnd());
-                       file.Close();
-                       file.Dispose();
-                   }
+               try
+               {
+                   if (File.Exists(path))
+                       using (StreamReader file = new StreamReader(path))
+                       {
+                           eventLogService.WriteEntry(file.ReadToEnd(), EventLogEntryType.Information, eventId);
+                           file.Close();
+                           file.Dispose();
+                       }
+               }
+               catch (Exception ex)
+               {
+                   eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
+               }
                mutex.ReleaseMutex();
            })
            { Name = $"Read_File{path}" };

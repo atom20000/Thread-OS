@@ -109,8 +109,7 @@ namespace Thread_OS
         }
         private static Thread Thread_Text_File(object feed_row_list) =>
             new Thread(() =>
-            {
-                mutex[0].WaitOne();
+            {           
                 List<ID_Text_Post> iD_Text_Posts;
                 ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
                 string id_post;
@@ -128,15 +127,15 @@ namespace Thread_OS
                         iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
                     }
                 }
+                mutex[0].WaitOne();
                 WriteinFile("ID_Text_Posts.json", new List<ID_Text_Post>(iD_Text_Posts));
-                iD_Text_Posts.Clear();
                 mutex[0].ReleaseMutex();
+                iD_Text_Posts.Clear();               
             })
             { Name = "Sort_Text" };
         private static Thread Thread_Href_File(object feed_row_list)=>
             new Thread(()=>
-            {
-                mutex[1].WaitOne();
+            {    
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
                 string id_post;
@@ -147,15 +146,15 @@ namespace Thread_OS
                         continue;
                     iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
+                mutex[1].WaitOne();
                 WriteinFile("ID_Href_Posts.json", new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
-                iD_Href_Posts.Clear();
                 mutex[1].ReleaseMutex();
+                iD_Href_Posts.Clear();             
             })
             { Name = "Sort_Href" };
         private static Thread Thread_Image_File(object feed_row_list)=>
             new Thread(()=>
-            {
-                mutex[2].WaitOne();
+            {  
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
                 string id_post;
@@ -166,9 +165,10 @@ namespace Thread_OS
                         continue;
                     iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                 }
+                mutex[2].WaitOne();
                 WriteinFile("ID_Image_Posts.json", new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
-                iD_Image_Posts.Clear();
                 mutex[2].ReleaseMutex();
+                iD_Image_Posts.Clear();
             })
             { Name = "Sort_Image" };
         private static Thread Thread_Post(object chromeDriver)=>
@@ -208,11 +208,9 @@ namespace Thread_OS
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                mutex[0].WaitOne();
-                mutex[1].WaitOne();
-                mutex[2].WaitOne();
                 for(int i = 0; i<3; i++) //foreach (string path in path_file)
                 {
+                    mutex[i].WaitOne();
                     Console.WriteLine($"Данные из документа {path_file[i]}");
                     if (File.Exists(path_file[i]))
                         using (StreamReader file = new StreamReader(path_file[i]))
@@ -228,8 +226,8 @@ namespace Thread_OS
         private static void StartService(string serviceName)
         {
             ServiceController service = new ServiceController(serviceName);
-            if(service.Status == ServiceControllerStatus.Running)
-                service.Stop();
+            if (service.Status == ServiceControllerStatus.Running)
+                return;
             service.Start();
         }
         private static void StopService(string serviceName)
