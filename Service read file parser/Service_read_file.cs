@@ -18,7 +18,7 @@ namespace Service_read_file_parser
 {
     public partial class Service_read_file : ServiceBase
     {
-        private int eventId = 1;
+        private int eventId = 0;
         public Mutex[] mutex = new Mutex[]
         {
             new Mutex(),
@@ -47,7 +47,7 @@ namespace Service_read_file_parser
 
         protected override void OnStart(string[] args)
         {
-            eventLogService.WriteEntry("Service start", EventLogEntryType.Information);
+            eventLogService.WriteEntry("Service start", EventLogEntryType.Information,eventId);
             #region Shared Memory
             try
             {
@@ -62,7 +62,8 @@ namespace Service_read_file_parser
                     MemoryMappedFileAccess.ReadWrite,
                     MemoryMappedFileOptions.None,
                     mappedFileSecurity,
-                    HandleInheritability.None);  
+                    HandleInheritability.None);
+                eventLogService.WriteEntry("MMF create", EventLogEntryType.Information, eventId);
             }
             catch (Exception ex)
             {
@@ -76,17 +77,19 @@ namespace Service_read_file_parser
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
         }
-
         protected override void OnStop()
         {
             mmf.Dispose();
-            eventLogService.WriteEntry("Service stop", EventLogEntryType.Information,eventId++);
+            eventLogService.WriteEntry("Service stop", EventLogEntryType.Information,++eventId);
         }
         private void OnTimer(object sender, ElapsedEventArgs args)
         {
-            //eventLogService.WriteEntry("Monitoring the System", EventLogEntryType.Information, eventId++);
+            eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
             if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+            {
+                eventLogService.WriteEntry("Aplication not start", EventLogEntryType.Warning, eventId);
                 return;
+            }     
             try
             {
                 using (MemoryMappedViewStream stream = mmf.CreateViewStream())
@@ -109,7 +112,6 @@ namespace Service_read_file_parser
             {
                 eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
             }
-            eventId++;
         }
         private  Thread Thread_Read(Mutex mutex, string path) =>
            new Thread(() =>
@@ -124,6 +126,8 @@ namespace Service_read_file_parser
                            file.Close();
                            file.Dispose();
                        }
+                   else
+                       eventLogService.WriteEntry($"File {path} is not found", EventLogEntryType.Warning, eventId);
                }
                catch (Exception ex)
                {

@@ -211,9 +211,12 @@ namespace Thread_OS
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                for(int i = 0; i<3; i++) //foreach (string path in path_file)
+                mutex[0].WaitOne();
+                mutex[1].WaitOne();
+                mutex[2].WaitOne();
+                for (int i = 0; i<3; i++) //foreach (string path in path_file)
                 {
-                    mutex[i].WaitOne();
+                    //mutex[i].WaitOne();
                     Console.WriteLine($"Данные из документа {path_file[i]}");
                     if (File.Exists(path_file[i]))
                         using (StreamReader file = new StreamReader(path_file[i]))
@@ -222,8 +225,11 @@ namespace Thread_OS
                             file.Close();
                             file.Dispose();
                         }
-                    mutex[i].ReleaseMutex();
+                    //mutex[i].ReleaseMutex();
                 }
+                mutex[0].ReleaseMutex();
+                mutex[1].ReleaseMutex();
+                mutex[2].ReleaseMutex();
             })
             { Name = "Read_File" };
         private static void StartService(string serviceName)
