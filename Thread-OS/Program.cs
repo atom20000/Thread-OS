@@ -33,20 +33,7 @@ namespace Thread_OS
 
         static void Main(string[] args)
         {
-            #region Shared Memory
-            //using (MemoryMappedFile mmf = MemoryMappedFile.CreateNew(@"Global\ Path_file", 1000))
-            //{
-            //    using (MemoryMappedViewStream stream = mmf.CreateViewStream())
-            //    {
-            //        BinaryWriter writer = new BinaryWriter(stream);
-            //        foreach(string path in path_file)
-            //        {
-            //            writer.Write(path);
-            //        }
-            //    }
-            //}
-            #endregion
-            StartService("Service_read_file");
+            //StartService("Service_read_file");
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -60,12 +47,28 @@ namespace Thread_OS
             #endregion
             for (int i = 0; i < 2; i++)
             {
+                #region Shared Memory
+                if (new ServiceController("Service_read_file").Status == ServiceControllerStatus.Running)
+                {
+                    using (MemoryMappedFile mmf = MemoryMappedFile.OpenExisting(@"Global\Path_file"))
+                    {
+                        using (MemoryMappedViewStream stream = mmf.CreateViewStream())
+                        {
+                            BinaryWriter writer = new BinaryWriter(stream);
+                            foreach (string path in path_file)
+                            {
+                                writer.Write(path);
+                            }
+                        }
+                    }
+                }
+                #endregion
                 thread_post = Thread_Post(chromeDriver);
                 thread_post.Start();
                 thread_post.Join();
                 //chromeDriver.Navigate().Refresh();
             }
-            StopService("Service_read_file");
+            //StopService("Service_read_file");
             #region
                 //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
                 //{
