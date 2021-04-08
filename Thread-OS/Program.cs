@@ -19,6 +19,12 @@ namespace Thread_OS
             new Mutex(false,@"Global\ File_Id_Href"),
             new Mutex(false,@"Global\ File_Id_Image")
         };
+        static readonly object[] locker = new object[]
+        {
+            new object(),
+            new object(),
+            new object()
+        };
         static readonly string[] path_file = new string[]
         {
             Path.Combine(Directory.GetCurrentDirectory(),"ID_Text_Posts.json"),
@@ -34,6 +40,7 @@ namespace Thread_OS
         static void Main(string[] args)
         {
             //StartService("Service_read_file");
+            SharedMemory();
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -42,51 +49,26 @@ namespace Thread_OS
                 LeaveBrowserRunning = true
             };
             options.AddArgument(pathBrowserUserData.User_DataPath);
-            ChromeDriver chromeDriver = new ChromeDriver(options);
-            chromeDriver.Navigate().GoToUrl("https://vk.com/feed");
-            #endregion
-            for (int i = 0; i < 2; i++)
+            try
             {
-                #region Shared Memory
-                if (new ServiceController("Service_read_file").Status == ServiceControllerStatus.Running)
-                {
-                    using (MemoryMappedFile mmf = MemoryMappedFile.OpenExisting(@"Global\Path_file"))
-                    {
-                        using (MemoryMappedViewStream stream = mmf.CreateViewStream())
-                        {
-                            BinaryWriter writer = new BinaryWriter(stream);
-                            foreach (string path in path_file)
-                            {
-                                writer.Write(path);
-                            }
-                        }
-                    }
-                }
+                ChromeDriver chromeDriver = new ChromeDriver(options);
+                chromeDriver.Navigate().GoToUrl("https://vk.com/feed");
                 #endregion
-                thread_post = Thread_Post(chromeDriver);
-                thread_post.Start();
-                thread_post.Join();
-                //chromeDriver.Navigate().Refresh();
+                for (int i = 0; i < 2; i++)
+                {
+                    SharedMemory();
+                    thread_post = Thread_Post(chromeDriver);
+                    thread_post.Start();
+                    thread_post.Join();
+                    //chromeDriver.Navigate().Refresh();
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"{ex.Message}\n Скорее всего браузер не был закрыт");
+                return;
             }
             //StopService("Service_read_file");
-            #region
-                //Thread thread_Text_file = new Thread(() => WriteinFile("ID_Text_Posts.json", iD_Text_Posts))
-                //{
-                //    Name = "File_ID_Text"
-                //};
-                //thread_Text_file.Start();
-                //Thread thread_Href_file = new Thread(() => WriteinFile("ID_Href_Posts.json", iD_Href_Posts))
-                //{
-                //    Name = "File_ID_Href"
-                //};
-                //thread_Href_file.Start();
-
-                //Thread thread_Image_file = new Thread(() => WriteinFile("ID_Image_Posts.json", iD_Image_Posts))
-                //{
-                //    Name = "File_ID_Image"
-                //};
-                //thread_Image_file.Start();
-                #endregion
         }
         private static void WriteinFile<T>(string path, List<T> objects)
         {
@@ -112,22 +94,25 @@ namespace Thread_OS
         }
         private static Thread Thread_Text_File(object feed_row_list) =>
             new Thread(() =>
-            {           
+            {
                 List<ID_Text_Post> iD_Text_Posts;
-                ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
-                string id_post;
-                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
-                {
-                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
-                        continue;
-                    try
+                lock (locker[0])
+                {   
+                    ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
+                    string id_post;
+                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                     {
-                        iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
-                    }
-                    catch (Exception)
-                    {
-                        iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
+                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                        if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                            continue;
+                        try
+                        {
+                            iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
+                        }
+                        catch (Exception)
+                        {
+                            iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
+                        }
                     }
                 }
                 mutex[0].WaitOne();
@@ -140,14 +125,17 @@ namespace Thread_OS
             new Thread(()=>
             {    
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
-                ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
-                string id_post;
-                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                lock (locker[1])
                 {
-                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
-                        continue;
-                    iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
+                    ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
+                    string id_post;
+                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                    {
+                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                        if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
+                            continue;
+                        iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
+                    }
                 }
                 mutex[1].WaitOne();
                 WriteinFile("ID_Href_Posts.json", new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
@@ -159,14 +147,17 @@ namespace Thread_OS
             new Thread(()=>
             {  
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
-                ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
-                string id_post;
-                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                lock (locker[2])
                 {
-                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                    if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
-                        continue;
-                    iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
+                    ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
+                    string id_post;
+                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                    {
+                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                        if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
+                            continue;
+                        iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
+                    }
                 }
                 mutex[2].WaitOne();
                 WriteinFile("ID_Image_Posts.json", new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
@@ -202,21 +193,24 @@ namespace Thread_OS
                 thread_href.Start();
                 thread_image = Thread_Image_File(new List<IWebElement>(feed_row_list));
                 thread_image.Start();
-                thread_text.Join();
-                thread_href.Join();
-                thread_image.Join();
-                (chromeDriver as ChromeDriver).Navigate().Refresh();
+                //thread_text.Join();
+                //thread_href.Join();
+                //thread_image.Join();
+                lock(locker[0])
+                    lock(locker[1])
+                        lock(locker[2])
+                            (chromeDriver as ChromeDriver).Navigate().Refresh();
         })
         { Name = "Find_Post" };
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                mutex[0].WaitOne();
-                mutex[1].WaitOne();
-                mutex[2].WaitOne();
+                //mutex[0].WaitOne();
+                //mutex[1].WaitOne();
+                //mutex[2].WaitOne();
                 for (int i = 0; i<3; i++) //foreach (string path in path_file)
                 {
-                    //mutex[i].WaitOne();
+                    mutex[i].WaitOne();
                     Console.WriteLine($"Данные из документа {path_file[i]}");
                     if (File.Exists(path_file[i]))
                         using (StreamReader file = new StreamReader(path_file[i]))
@@ -225,11 +219,11 @@ namespace Thread_OS
                             file.Close();
                             file.Dispose();
                         }
-                    //mutex[i].ReleaseMutex();
+                    mutex[i].ReleaseMutex();
                 }
-                mutex[0].ReleaseMutex();
-                mutex[1].ReleaseMutex();
-                mutex[2].ReleaseMutex();
+                //mutex[0].ReleaseMutex();
+                //mutex[1].ReleaseMutex();
+                //mutex[2].ReleaseMutex();
             })
             { Name = "Read_File" };
         private static void StartService(string serviceName)
@@ -244,6 +238,22 @@ namespace Thread_OS
             ServiceController service = new ServiceController(serviceName);
             if(service.Status != ServiceControllerStatus.Stopped)
                 service.Stop();
+        }
+        private static void SharedMemory()
+        {
+            if (!new ServiceController("Service_read_file").Status.Equals(ServiceControllerStatus.Running))
+                return;
+            using (MemoryMappedFile mmf = MemoryMappedFile.OpenExisting(@"Global\Path_file"))
+            {
+                using (MemoryMappedViewStream stream = mmf.CreateViewStream())
+                {
+                    BinaryWriter writer = new BinaryWriter(stream);
+                    foreach (string path in path_file)
+                    {
+                        writer.Write(path);
+                    }
+                }
+            }
         }
     }
 }

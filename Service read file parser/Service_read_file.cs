@@ -89,7 +89,8 @@ namespace Service_read_file_parser
             {
                 eventLogService.WriteEntry("Aplication not start", EventLogEntryType.Warning, eventId);
                 return;
-            }     
+            }
+            #region Shared Memory
             try
             {
                 using (MemoryMappedViewStream stream = mmf.CreateViewStream())
@@ -98,19 +99,31 @@ namespace Service_read_file_parser
                     for (int i = 0; i < path_file.Length; i++)
                     {
                         path_file[i] = reader.ReadString();
-                        //eventLogService.WriteEntry(path_file[i], EventLogEntryType.Warning, eventId);
+                        eventLogService.WriteEntry($"Path: path_file[i]", EventLogEntryType.Information, eventId);
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
+            }
+            #endregion
+            try
+            {
                 for (int i = 0; i < mutex_name.Length; i++)
                 {
-                    mutex[i] = Mutex.OpenExisting(mutex_name[i]);
-                    //eventLogService.WriteEntry(mutex[i].ToString(), EventLogEntryType.Information, eventId);// удалить
+                    if(!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
+                    {
+                        i--;
+                        continue;
+                    }
+                    eventLogService.WriteEntry($"Mutex {mutex_name[i]} find", EventLogEntryType.Information, eventId);
                     Thread_Read(mutex[i], path_file[i]).Start();
                 }  
             }
             catch (Exception ex)
             {
-                eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
+                eventLogService.WriteEntry($"{ex.Message} mutex", EventLogEntryType.Error, eventId);
             }
         }
         private  Thread Thread_Read(Mutex mutex, string path) =>
