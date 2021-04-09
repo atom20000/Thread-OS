@@ -136,7 +136,7 @@ namespace Service_read_file_parser
                    if (File.Exists(path))
                        using (StreamReader file = new StreamReader(path))
                        {
-                           eventLogService.WriteEntry(file.ReadToEnd(), EventLogEntryType.Information, eventId);
+                           eventLogService.WriteEntry($"File {path}\n{file.ReadToEnd()}", EventLogEntryType.Information, eventId);
                            file.Close();
                            file.Dispose();
                        }
