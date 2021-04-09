@@ -33,6 +33,10 @@ namespace Service_read_file_parser
         };
         string[] path_file = new string[3];
         MemoryMappedFile mmf;
+        private readonly System.Timers.Timer timer = new System.Timers.Timer()
+        {
+            Interval = 5000
+        };
         public Service_read_file()
         {
             InitializeComponent();
@@ -70,15 +74,12 @@ namespace Service_read_file_parser
                 eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error);
             }
             #endregion
-            System.Timers.Timer timer = new System.Timers.Timer()
-            {
-                Interval = 5000               
-            };
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
         }
         protected override void OnStop()
         {
+            timer.Stop();
             mmf.Dispose();
             eventLogService.WriteEntry("Service stop", EventLogEntryType.Information,++eventId);
         }
