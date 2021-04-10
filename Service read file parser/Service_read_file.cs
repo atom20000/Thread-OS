@@ -100,7 +100,7 @@ namespace Service_read_file_parser
                     for (int i = 0; i < path_file.Length; i++)
                     {
                         path_file[i] = reader.ReadString();
-                        eventLogService.WriteEntry($"Path: path_file[i]", EventLogEntryType.Information, eventId);
+                        eventLogService.WriteEntry($"Path: {path_file[i]}", EventLogEntryType.Information, eventId);
                     }
                 }
             }
