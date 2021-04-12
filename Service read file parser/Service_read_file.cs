@@ -27,12 +27,17 @@ namespace Service_read_file_parser
         };
         readonly string[] mutex_name = new string[]
         {
-            @"Global\ File_Id_Text",
-            @"Global\ File_Id_Href",
-            @"Global\ File_Id_Image"
+            @"Global\File_Id_Text",
+            @"Global\File_Id_Href",
+            @"Global\File_Id_Image"
         };
-        string[] path_file = new string[3];
-        MemoryMappedFile mmf;
+        static readonly string[] path_file = new string[]
+        {
+            Path.Combine("G:\\","ID_Text_Posts.json"),
+            Path.Combine("G:\\","ID_Href_Posts.json"),
+            Path.Combine("G:\\","ID_Image_Posts.json")
+        };
+        //MemoryMappedFile mmf;
         private readonly System.Timers.Timer timer = new System.Timers.Timer()
         {
             Interval = 5000
@@ -53,26 +58,26 @@ namespace Service_read_file_parser
         {
             eventLogService.WriteEntry("Service start", EventLogEntryType.Information,eventId);
             #region Shared Memory
-            try
-            {
-                var mappedFileSecurity = new MemoryMappedFileSecurity();
-                mappedFileSecurity.AddAccessRule(new AccessRule<MemoryMappedFileRights>(
-                    new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                    MemoryMappedFileRights.FullControl,
-                    AccessControlType.Allow));
-                mmf = MemoryMappedFile.CreateNew(
-                    "Path_file",
-                    0x100000L,
-                    MemoryMappedFileAccess.ReadWrite,
-                    MemoryMappedFileOptions.None,
-                    mappedFileSecurity,
-                    HandleInheritability.None);
-                eventLogService.WriteEntry("MMF create", EventLogEntryType.Information, eventId);
-            }
-            catch (Exception ex)
-            {
-                eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error);
-            }
+            //try
+            //{
+            //    var mappedFileSecurity = new MemoryMappedFileSecurity();
+            //    mappedFileSecurity.AddAccessRule(new AccessRule<MemoryMappedFileRights>(
+            //        new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+            //        MemoryMappedFileRights.FullControl,
+            //        AccessControlType.Allow));
+            //    mmf = MemoryMappedFile.CreateNew(
+            //        "Path_file",
+            //        0x100000L,
+            //        MemoryMappedFileAccess.ReadWrite,
+            //        MemoryMappedFileOptions.None,
+            //        mappedFileSecurity,
+            //        HandleInheritability.None);
+            //    eventLogService.WriteEntry("MMF create", EventLogEntryType.Information, eventId);
+            //}
+            //catch (Exception ex)
+            //{
+            //    eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error);
+            //}
             #endregion
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
@@ -80,47 +85,46 @@ namespace Service_read_file_parser
         protected override void OnStop()
         {
             timer.Stop();
-            mmf.Dispose();
+            //mmf.Dispose();
             eventLogService.WriteEntry("Service stop", EventLogEntryType.Information,++eventId);
         }
         private void OnTimer(object sender, ElapsedEventArgs args)
         {
             eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
-            if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
-            {
-                eventLogService.WriteEntry("Aplication not start", EventLogEntryType.Warning, eventId);
-                return;
-            }
+            #region
+            //if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+            //{
+            //    eventLogService.WriteEntry("Aplication not start", EventLogEntryType.Warning, eventId);
+            //    return;
+            //}
+            #endregion
             #region Shared Memory
-            try
-            {
-                using (MemoryMappedViewStream stream = mmf.CreateViewStream())
-                {
-                    BinaryReader reader = new BinaryReader(stream);
-                    for (int i = 0; i < path_file.Length; i++)
-                    {
-                        path_file[i] = reader.ReadString();
-                        eventLogService.WriteEntry($"Path: {path_file[i]}", EventLogEntryType.Information, eventId);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
-            }
+            //try
+            //{
+            //    using (MemoryMappedViewStream stream = mmf.CreateViewStream())
+            //    {
+            //        BinaryReader reader = new BinaryReader(stream);
+            //        for (int i = 0; i < path_file.Length; i++)
+            //        {
+            //            path_file[i] = reader.ReadString();
+            //            eventLogService.WriteEntry($"Path: {path_file[i]}", EventLogEntryType.Information, eventId);
+            //        }
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
+            //}
             #endregion
             try
             {
                 for (int i = 0; i < mutex_name.Length; i++)
                 {
-                    if(!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
-                    {
-                        i--;
-                        continue;
-                    }
-                    eventLogService.WriteEntry($"Mutex {mutex_name[i]} find", EventLogEntryType.Information, eventId);
+                    if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
+                        mutex[i] = new Mutex(false, mutex_name[i]);
+                    eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
                     Thread_Read(mutex[i], path_file[i]).Start();
-                }  
+                } 
             }
             catch (Exception ex)
             {

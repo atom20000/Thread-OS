@@ -27,9 +27,15 @@ namespace Thread_OS
         };
         static readonly string[] path_file = new string[]
         {
-            Path.Combine(Directory.GetCurrentDirectory(),"ID_Text_Posts.json"),
-            Path.Combine(Directory.GetCurrentDirectory(),"ID_Href_Posts.json"),
-            Path.Combine(Directory.GetCurrentDirectory(),"ID_Image_Posts.json")
+            Path.Combine("G:\\","ID_Text_Posts.json"),
+            Path.Combine("G:\\","ID_Href_Posts.json"),
+            Path.Combine("G:\\","ID_Image_Posts.json")
+        };
+        static readonly string[] mutex_name = new string[]
+        {
+            @"Global\File_Id_Text",
+            @"Global\File_Id_Href",
+            @"Global\File_Id_Image"
         };
         static Thread thread_text;
         static Thread thread_href;
@@ -40,7 +46,7 @@ namespace Thread_OS
         static void Main(string[] args)
         {
             //StartService("Service_read_file");
-            SharedMemory();
+            //SharedMemory();
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -56,7 +62,8 @@ namespace Thread_OS
                 #endregion
                 for (int i = 0; i < 2; i++)
                 {
-                    SharedMemory();
+                    //SharedMemory();
+                    CheckorCreateMutex();
                     thread_post = Thread_Post(chromeDriver);
                     thread_post.Start();
                     thread_post.Join();
@@ -116,7 +123,7 @@ namespace Thread_OS
                     }
                 }
                 mutex[0].WaitOne();
-                WriteinFile("ID_Text_Posts.json", new List<ID_Text_Post>(iD_Text_Posts));
+                WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
                 iD_Text_Posts.Clear();               
             })
@@ -138,7 +145,7 @@ namespace Thread_OS
                     }
                 }
                 mutex[1].WaitOne();
-                WriteinFile("ID_Href_Posts.json", new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
+                WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
                 iD_Href_Posts.Clear();             
             })
@@ -160,7 +167,7 @@ namespace Thread_OS
                     }
                 }
                 mutex[2].WaitOne();
-                WriteinFile("ID_Image_Posts.json", new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
+                WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
                 iD_Image_Posts.Clear();
             })
@@ -205,12 +212,12 @@ namespace Thread_OS
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                //mutex[0].WaitOne();
-                //mutex[1].WaitOne();
-                //mutex[2].WaitOne();
-                for (int i = 0; i<3; i++) //foreach (string path in path_file)
+                mutex[0].WaitOne();
+                mutex[1].WaitOne();
+                mutex[2].WaitOne();
+                for (int i = 0; i<path_file.Length; i++) //foreach (string path in path_file)
                 {
-                    mutex[i].WaitOne();
+                    //mutex[i].WaitOne();
                     Console.WriteLine($"Данные из документа {path_file[i]}");
                     if (File.Exists(path_file[i]))
                         using (StreamReader file = new StreamReader(path_file[i]))
@@ -219,11 +226,11 @@ namespace Thread_OS
                             file.Close();
                             file.Dispose();
                         }
-                    mutex[i].ReleaseMutex();
+                    //mutex[i].ReleaseMutex();
                 }
-                //mutex[0].ReleaseMutex();
-                //mutex[1].ReleaseMutex();
-                //mutex[2].ReleaseMutex();
+                mutex[0].ReleaseMutex();
+                mutex[1].ReleaseMutex();
+                mutex[2].ReleaseMutex();
             })
             { Name = "Read_File" };
         private static void StartService(string serviceName)
@@ -255,6 +262,11 @@ namespace Thread_OS
                 }
             }
         }
-
+        private static void CheckorCreateMutex()
+        {
+            for (int i = 0; i < mutex_name.Length; i++)
+                if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
+                    mutex[i] = new Mutex(false, mutex_name[i]);
+        }
     }
 }
