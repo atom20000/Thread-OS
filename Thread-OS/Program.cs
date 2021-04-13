@@ -15,9 +15,10 @@ namespace Thread_OS
     {
         static public readonly Mutex[] mutex = new Mutex[]
         {
-            new Mutex(false,@"Global\ File_Id_Text"),
-            new Mutex(false,@"Global\ File_Id_Href"),
-            new Mutex(false,@"Global\ File_Id_Image")
+            new Mutex(),
+            new Mutex(),
+            new Mutex(),
+            new Mutex()
         };
         static readonly object[] locker = new object[]
         {
@@ -35,7 +36,8 @@ namespace Thread_OS
         {
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
-            @"Global\File_Id_Image"
+            @"Global\File_Id_Image",
+            @"Global\Sync_Processes"
         };
         static Thread thread_text;
         static Thread thread_href;
@@ -200,13 +202,13 @@ namespace Thread_OS
                 thread_href.Start();
                 thread_image = Thread_Image_File(new List<IWebElement>(feed_row_list));
                 thread_image.Start();
-                //thread_text.Join();
-                //thread_href.Join();
-                //thread_image.Join();
-                lock(locker[0])
-                    lock(locker[1])
-                        lock(locker[2])
-                            (chromeDriver as ChromeDriver).Navigate().Refresh();
+                thread_text.Join();
+                thread_href.Join();
+                thread_image.Join();
+                //lock(locker[0])
+                //    lock(locker[1])
+                //        lock(locker[2])
+                (chromeDriver as ChromeDriver).Navigate().Refresh();
         })
         { Name = "Find_Post" };
         private static Thread Thread_Read()=>

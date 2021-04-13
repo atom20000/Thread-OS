@@ -29,7 +29,8 @@ namespace Service_read_file_parser
         {
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
-            @"Global\File_Id_Image"
+            @"Global\File_Id_Image",
+            @"Global\Sync_Processes"
         };
         static readonly string[] path_file = new string[]
         {
