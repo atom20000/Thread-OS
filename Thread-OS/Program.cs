@@ -13,19 +13,19 @@ namespace Thread_OS
 {
     class Program
     {
-        static public readonly Mutex[] mutex = new Mutex[]
+        static public Mutex[] mutex = new Mutex[]
         {
             new Mutex(),
             new Mutex(),
             new Mutex(),
             new Mutex()
         };
-        static readonly object[] locker = new object[]
-        {
-            new object(),
-            new object(),
-            new object()
-        };
+        //static readonly object[] locker = new object[]
+        //{
+        //    new object(),
+        //    new object(),
+        //    new object()
+        //};
         static readonly string[] path_file = new string[]
         {
             Path.Combine("G:\\","ID_Text_Posts.json"),
@@ -37,9 +37,15 @@ namespace Thread_OS
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
             @"Global\File_Id_Image",
-            @"Global\Sync_Processes"
+            //@"Global\Sync_Processes"
         };
         static Barrier BarrierRefresh = new Barrier(4);
+        static readonly string[] eventwaithandle_name = new string[]
+        {
+            @"Global\Sync_Aplication",
+            @"Global\Sync_Service"
+        };
+        static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
         static Thread thread_text;
         static Thread thread_href;
         static Thread thread_image;
@@ -66,10 +72,23 @@ namespace Thread_OS
                 for (int i = 0; i < 2; i++)
                 {
                     //SharedMemory();
+                    CheckorCreateEventWaitHandle();
+                    if (!new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running))
+                    {
+                        eventWaitHandle[1].Reset();
+                        eventWaitHandle[0].Set();
+                    }
+                    eventWaitHandle[0].WaitOne();
+
                     CheckorCreateMutex();
                     thread_post = Thread_Post(chromeDriver);
                     thread_post.Start();
                     thread_post.Join();
+                    if(new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running))
+                    {
+                        eventWaitHandle[0].Reset();
+                        eventWaitHandle[1].Set();
+                    }
                     //chromeDriver.Navigate().Refresh();
                 }
             }
@@ -106,25 +125,25 @@ namespace Thread_OS
             new Thread(() =>
             {
                 List<ID_Text_Post> iD_Text_Posts;
-                lock (locker[0])
-                {   
-                    ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                //lock (locker[0])
+                //{   
+                ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                {
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    try
                     {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        try
-                        {
-                            iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
-                        }
-                        catch (Exception)
-                        {
-                            iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
-                        }
+                        iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
+                    }
+                    catch (Exception)
+                    {
+                        iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
                     }
                 }
+                //}
                 BarrierRefresh.SignalAndWait();
                 mutex[0].WaitOne();
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
@@ -136,18 +155,18 @@ namespace Thread_OS
             new Thread(()=>
             {    
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
-                lock (locker[1])
+                //lock (locker[1])
+                //{
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
-                    ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
-                    {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
-                    }
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
+                //}
                 BarrierRefresh.SignalAndWait();
                 mutex[1].WaitOne();
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
@@ -159,18 +178,18 @@ namespace Thread_OS
             new Thread(()=>
             {  
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
-                lock (locker[2])
+                //lock (locker[2])
+                //{
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
-                    ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
-                    {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
-                    }
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                 }
+                //}
                 BarrierRefresh.SignalAndWait();
                 mutex[2].WaitOne();
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
@@ -273,6 +292,13 @@ namespace Thread_OS
         {
             for (int i = 0; i < mutex_name.Length; i++)
                 mutex[i] = new Mutex(false, mutex_name[i]);
+        }
+        private static void CheckorCreateEventWaitHandle()
+        {
+            if(!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0],out eventWaitHandle[0]))
+                eventWaitHandle[0] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[0]);
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
+                eventWaitHandle[1] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[1]);
         }
     }
 }

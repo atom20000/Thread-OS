@@ -30,7 +30,7 @@ namespace Service_read_file_parser
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
             @"Global\File_Id_Image",
-            @"Global\Sync_Processes"
+            //@"Global\Sync_Processes"
         };
         static readonly string[] path_file = new string[]
         {
@@ -38,6 +38,13 @@ namespace Service_read_file_parser
             Path.Combine("G:\\","ID_Href_Posts.json"),
             Path.Combine("G:\\","ID_Image_Posts.json")
         };
+        static readonly string[] eventwaithandle_name = new string[]
+        {
+            @"Global\Sync_Aplication",
+            @"Global\Sync_Service"
+        };
+        static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static private int Count_Thread = 0;
         //MemoryMappedFile mmf;
         private readonly System.Timers.Timer timer = new System.Timers.Timer()
         {
@@ -91,7 +98,6 @@ namespace Service_read_file_parser
         }
         private void OnTimer(object sender, ElapsedEventArgs args)
         {
-            eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
             #region
             //if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
             //{
@@ -119,12 +125,40 @@ namespace Service_read_file_parser
             #endregion
             try
             {
-                for (int i = 0; i < mutex_name.Length; i++)
+                CheckorCreateEventWaitHandle();
+                if (Count_Thread.Equals(0))
                 {
-                    mutex[i] = new Mutex(false, mutex_name[i]);
-                    eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
-                    Thread_Read(mutex[i], path_file[i]).Start();
-                } 
+                    eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
+                    Count_Thread = 1;
+
+                    for (int i = 0; i < mutex_name.Length; i++)
+                    {
+                        mutex[i] = new Mutex(false, mutex_name[i]);
+                        eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
+                        Thread_Read(mutex[i], path_file[i]).Start();   
+                    }
+                    eventLogService.WriteEntry($"Start three thread", EventLogEntryType.Information, eventId);
+                }
+                else if (Count_Thread.Equals(4))
+                {
+                    if (!Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+                    {
+                        eventWaitHandle[1].Reset();
+                        eventWaitHandle[0].Set();
+                    }
+                    Count_Thread = 0;
+                    eventLogService.WriteEntry($"Finish work threads", EventLogEntryType.Information, eventId);
+                }
+                else
+                {
+                    if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+                    {
+                        eventWaitHandle[0].Reset();
+                        eventWaitHandle[1].Set();
+                    }
+                    eventLogService.WriteEntry($"Expect Aplication", EventLogEntryType.Information, eventId);
+                    return;
+                }  
             }
             catch (Exception ex)
             {
@@ -134,6 +168,7 @@ namespace Service_read_file_parser
         private  Thread Thread_Read(Mutex mutex, string path) =>
            new Thread(() =>
            {
+               eventWaitHandle[1].WaitOne();
                mutex.WaitOne();
                try
                {
@@ -152,7 +187,15 @@ namespace Service_read_file_parser
                    eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
                }
                mutex.ReleaseMutex();
+               Count_Thread+=1;
            })
            { Name = $"Read_File{path}" };
+        private static void CheckorCreateEventWaitHandle()
+        {
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0], out eventWaitHandle[0]))
+                eventWaitHandle[0] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[0]);
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
+                eventWaitHandle[1] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[1]);
+        }
     }
 }
