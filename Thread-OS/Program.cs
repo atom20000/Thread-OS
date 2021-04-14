@@ -73,7 +73,7 @@ namespace Thread_OS
                 {
                     //SharedMemory();
                     CheckorCreateEventWaitHandle();
-                    if (!new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running))
+                    if (!(new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running)))
                     {
                         eventWaitHandle[1].Reset();
                         eventWaitHandle[0].Set();
