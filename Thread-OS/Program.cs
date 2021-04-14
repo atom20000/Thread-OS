@@ -39,6 +39,7 @@ namespace Thread_OS
             @"Global\File_Id_Image",
             @"Global\Sync_Processes"
         };
+        static Barrier BarrierRefresh = new Barrier(4);
         static Thread thread_text;
         static Thread thread_href;
         static Thread thread_image;
@@ -124,6 +125,7 @@ namespace Thread_OS
                         }
                     }
                 }
+                BarrierRefresh.SignalAndWait();
                 mutex[0].WaitOne();
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
@@ -146,6 +148,7 @@ namespace Thread_OS
                         iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                     }
                 }
+                BarrierRefresh.SignalAndWait();
                 mutex[1].WaitOne();
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
@@ -168,6 +171,7 @@ namespace Thread_OS
                         iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                     }
                 }
+                BarrierRefresh.SignalAndWait();
                 mutex[2].WaitOne();
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
@@ -202,12 +206,13 @@ namespace Thread_OS
                 thread_href.Start();
                 thread_image = Thread_Image_File(new List<IWebElement>(feed_row_list));
                 thread_image.Start();
-                thread_text.Join();
-                thread_href.Join();
-                thread_image.Join();
+                //thread_text.Join();
+                //thread_href.Join();
+                //thread_image.Join();
                 //lock(locker[0])
                 //    lock(locker[1])
                 //        lock(locker[2])
+                BarrierRefresh.SignalAndWait();
                 (chromeDriver as ChromeDriver).Navigate().Refresh();
         })
         { Name = "Find_Post" };
@@ -267,8 +272,7 @@ namespace Thread_OS
         private static void CheckorCreateMutex()
         {
             for (int i = 0; i < mutex_name.Length; i++)
-                if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
-                    mutex[i] = new Mutex(false, mutex_name[i]);
+                mutex[i] = new Mutex(false, mutex_name[i]);
         }
     }
 }

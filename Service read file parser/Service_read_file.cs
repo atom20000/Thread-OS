@@ -121,8 +121,7 @@ namespace Service_read_file_parser
             {
                 for (int i = 0; i < mutex_name.Length; i++)
                 {
-                    if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
-                        mutex[i] = new Mutex(false, mutex_name[i]);
+                    mutex[i] = new Mutex(false, mutex_name[i]);
                     eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
                     Thread_Read(mutex[i], path_file[i]).Start();
                 } 
