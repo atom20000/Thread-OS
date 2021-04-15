@@ -44,6 +44,18 @@ namespace Service_read_file_parser
             @"Global\Sync_Service"
         };
         static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch (AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
         static private int Count_Thread = 0;
         //MemoryMappedFile mmf;
         private readonly System.Timers.Timer timer = new System.Timers.Timer()
@@ -171,7 +183,7 @@ namespace Service_read_file_parser
            new Thread(() =>
            {
                eventWaitHandle[1].WaitOne();
-               mutex.WaitOne();
+               CheckAbandonedMutex(mutex);
                try
                {
                    if (File.Exists(path))
@@ -197,14 +209,14 @@ namespace Service_read_file_parser
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0], out eventWaitHandle[0]))
             {
                 EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
-                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier("S-1-1-0"),
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid,null),//S-1-1-0
                     EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
                 eventWaitHandle[0] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[0], out _, eventWaitHandleSecurity);
             }
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
             {
                 EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
-                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier("S-1-1-0"),
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),//S-1-1-0
                     EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
                 eventWaitHandle[1] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[1], out _, eventWaitHandleSecurity);
             }

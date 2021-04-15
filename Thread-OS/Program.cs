@@ -50,7 +50,18 @@ namespace Thread_OS
         {
             Interval = 5000
         };
-        
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch(AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
         static Thread thread_text;
         static Thread thread_href;
         static Thread thread_image;
@@ -147,7 +158,7 @@ namespace Thread_OS
                 }
                 //}
                 BarrierRefresh.SignalAndWait();
-                mutex[0].WaitOne();
+                CheckAbandonedMutex(mutex[0]);
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
                 iD_Text_Posts.Clear();               
@@ -170,7 +181,7 @@ namespace Thread_OS
                 }
                 //}
                 BarrierRefresh.SignalAndWait();
-                mutex[1].WaitOne();
+                CheckAbandonedMutex(mutex[1]);
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
                 iD_Href_Posts.Clear();             
@@ -193,7 +204,7 @@ namespace Thread_OS
                 }
                 //}
                 BarrierRefresh.SignalAndWait();
-                mutex[2].WaitOne();
+                CheckAbandonedMutex(mutex[2]);
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
                 iD_Image_Posts.Clear();
@@ -240,9 +251,9 @@ namespace Thread_OS
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                mutex[0].WaitOne();
-                mutex[1].WaitOne();
-                mutex[2].WaitOne();
+                CheckAbandonedMutex(mutex[0]);
+                CheckAbandonedMutex(mutex[1]);
+                CheckAbandonedMutex(mutex[2]);
                 for (int i = 0; i<path_file.Length; i++) //foreach (string path in path_file)
                 {
                     //mutex[i].WaitOne();
