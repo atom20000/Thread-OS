@@ -46,6 +46,11 @@ namespace Thread_OS
             @"Global\Sync_Service"
         };
         static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static System.Timers.Timer timer = new System.Timers.Timer()
+        {
+            Interval = 5000
+        };
+        
         static Thread thread_text;
         static Thread thread_href;
         static Thread thread_image;
@@ -56,6 +61,7 @@ namespace Thread_OS
         {
             //StartService("Service_read_file");
             //SharedMemory();
+            timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -73,18 +79,14 @@ namespace Thread_OS
                 {
                     //SharedMemory();
                     CheckorCreateEventWaitHandle();
-                    if (!(new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running)))
-                    {
-                        eventWaitHandle[1].Reset();
-                        eventWaitHandle[0].Set();
-                    }
+                    timer.Start();
                     eventWaitHandle[0].WaitOne();
-
+                    timer.Stop();
                     CheckorCreateMutex();
                     thread_post = Thread_Post(chromeDriver);
                     thread_post.Start();
                     thread_post.Join();
-                    if(new ServiceController("Service_read_file").Equals(ServiceControllerStatus.Running))
+                    if(new ServiceController("Service_read_file").Status.Equals(ServiceControllerStatus.Running))
                     {
                         eventWaitHandle[0].Reset();
                         eventWaitHandle[1].Set();
@@ -299,6 +301,14 @@ namespace Thread_OS
                 eventWaitHandle[0] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[0]);
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
                 eventWaitHandle[1] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[1]);
+        }
+        private static void OnTimer(object sender, System.Timers.ElapsedEventArgs args)
+        {
+            if (!new ServiceController("Service_read_file").Status.Equals(ServiceControllerStatus.Running))
+            {
+                eventWaitHandle[1].Reset();
+                eventWaitHandle[0].Set();
+            }
         }
     }
 }

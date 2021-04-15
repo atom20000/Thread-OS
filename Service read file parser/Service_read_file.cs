@@ -128,8 +128,8 @@ namespace Service_read_file_parser
                 CheckorCreateEventWaitHandle();
                 if (Count_Thread.Equals(0))
                 {
-                    eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
                     Count_Thread = 1;
+                    eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
 
                     for (int i = 0; i < mutex_name.Length; i++)
                     {
@@ -155,6 +155,8 @@ namespace Service_read_file_parser
                     {
                         eventWaitHandle[0].Reset();
                         eventWaitHandle[1].Set();
+                        eventLogService.WriteEntry($"Aplication not start", EventLogEntryType.Information, eventId);
+                        return;
                     }
                     eventLogService.WriteEntry($"Expect Aplication", EventLogEntryType.Information, eventId);
                     return;
@@ -190,12 +192,22 @@ namespace Service_read_file_parser
                Count_Thread+=1;
            })
            { Name = $"Read_File{path}" };
-        private static void CheckorCreateEventWaitHandle()
+        private void CheckorCreateEventWaitHandle()
         {
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0], out eventWaitHandle[0]))
-                eventWaitHandle[0] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[0]);
+            {
+                EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier("S-1-1-0"),
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
+                eventWaitHandle[0] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[0], out _, eventWaitHandleSecurity);
+            }
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
-                eventWaitHandle[1] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[1]);
+            {
+                EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier("S-1-1-0"),
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
+                eventWaitHandle[1] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[1], out _, eventWaitHandleSecurity);
+            }
         }
     }
 }
