@@ -57,6 +57,7 @@ namespace Service_read_file_parser
             }
         });
         static private int Count_Thread = 0;
+        static private object locker = new object();
         //MemoryMappedFile mmf;
         private readonly System.Timers.Timer timer = new System.Timers.Timer()
         {
@@ -147,9 +148,9 @@ namespace Service_read_file_parser
                     {
                         mutex[i] = new Mutex(false, mutex_name[i]);
                         eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
-                        Thread_Read(mutex[i], path_file[i]).Start();   
+                        Thread_Read(mutex[i], path_file[i]).Start();
+                        eventLogService.WriteEntry($"Start {i} thread", EventLogEntryType.Information, eventId);
                     }
-                    eventLogService.WriteEntry($"Start three thread", EventLogEntryType.Information, eventId);
                 }
                 else if (Count_Thread.Equals(4))
                 {
@@ -201,7 +202,9 @@ namespace Service_read_file_parser
                    eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
                }
                mutex.ReleaseMutex();
-               Count_Thread+=1;
+               lock (locker)
+                   Count_Thread += 1;
+
            })
            { Name = $"Read_File{path}" };
         private void CheckorCreateEventWaitHandle()

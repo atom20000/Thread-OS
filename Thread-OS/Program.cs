@@ -163,9 +163,9 @@ namespace Thread_OS
                     }
                 }
                 //}
-                Barrier_File[0].SignalAndWait();
-                BarrierRefresh.SignalAndWait();
+                Barrier_File[0].SignalAndWait();  
                 CheckAbandonedMutex(mutex[0]);
+                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
                 iD_Text_Posts.Clear();               
@@ -187,9 +187,9 @@ namespace Thread_OS
                     iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
                 //}
-                Barrier_File[1].SignalAndWait();
-                BarrierRefresh.SignalAndWait();               
+                Barrier_File[1].SignalAndWait();            
                 CheckAbandonedMutex(mutex[1]);
+                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
                 iD_Href_Posts.Clear();             
@@ -212,8 +212,8 @@ namespace Thread_OS
                 }
                 //}
                 Barrier_File[2].SignalAndWait();
-                BarrierRefresh.SignalAndWait();
                 CheckAbandonedMutex(mutex[2]);
+                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
                 iD_Image_Posts.Clear();
