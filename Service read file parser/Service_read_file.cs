@@ -34,9 +34,9 @@ namespace Service_read_file_parser
         };
         static readonly string[] path_file = new string[]
         {
-            Path.Combine("G:\\","ID_Text_Posts.json"),
-            Path.Combine("G:\\","ID_Href_Posts.json"),
-            Path.Combine("G:\\","ID_Image_Posts.json")
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Text_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Href_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Image_Posts.json")
         };
         static readonly string[] eventwaithandle_name = new string[]
         {

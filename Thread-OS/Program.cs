@@ -28,9 +28,9 @@ namespace Thread_OS
         //};
         static readonly string[] path_file = new string[]
         {
-            Path.Combine("G:\\","ID_Text_Posts.json"),
-            Path.Combine("G:\\","ID_Href_Posts.json"),
-            Path.Combine("G:\\","ID_Image_Posts.json")
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Text_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Href_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Image_Posts.json")
         };
         static readonly string[] mutex_name = new string[]
         {
@@ -146,6 +146,8 @@ namespace Thread_OS
                 List<ID_Text_Post> iD_Text_Posts;
                 //lock (locker[0])
                 //{   
+                Barrier_File[0].SignalAndWait();
+                CheckAbandonedMutex(mutex[0]);
                 ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
@@ -163,11 +165,9 @@ namespace Thread_OS
                     }
                 }
                 //}
-                Barrier_File[0].SignalAndWait();  
-                CheckAbandonedMutex(mutex[0]);
-                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Text_Posts.Clear();               
             })
             { Name = "Sort_Text" };
@@ -177,6 +177,8 @@ namespace Thread_OS
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
                 //lock (locker[1])
                 //{
+                Barrier_File[1].SignalAndWait();
+                CheckAbandonedMutex(mutex[1]);
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
@@ -187,11 +189,9 @@ namespace Thread_OS
                     iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
                 //}
-                Barrier_File[1].SignalAndWait();            
-                CheckAbandonedMutex(mutex[1]);
-                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Href_Posts.Clear();             
             })
             { Name = "Sort_Href" };
@@ -201,6 +201,8 @@ namespace Thread_OS
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
                 //lock (locker[2])
                 //{
+                Barrier_File[2].SignalAndWait();
+                CheckAbandonedMutex(mutex[2]);
                 ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
                 string id_post;
                 foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
@@ -211,11 +213,9 @@ namespace Thread_OS
                     iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                 }
                 //}
-                Barrier_File[2].SignalAndWait();
-                CheckAbandonedMutex(mutex[2]);
-                BarrierRefresh.SignalAndWait();
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Image_Posts.Clear();
             })
             { Name = "Sort_Image" };
