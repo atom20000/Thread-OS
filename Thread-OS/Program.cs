@@ -13,30 +13,61 @@ namespace Thread_OS
 {
     class Program
     {
-        static public readonly Mutex[] mutex = new Mutex[]
+        static public Mutex[] mutex = new Mutex[]
         {
-            new Mutex(false,@"Global\ File_Id_Text"),
-            new Mutex(false,@"Global\ File_Id_Href"),
-            new Mutex(false,@"Global\ File_Id_Image")
+            new Mutex(),
+            new Mutex(),
+            new Mutex(),
+            new Mutex()
         };
-        static readonly object[] locker = new object[]
-        {
-            new object(),
-            new object(),
-            new object()
-        };
+        //static readonly object[] locker = new object[]
+        //{
+        //    new object(),
+        //    new object(),
+        //    new object()
+        //};
         static readonly string[] path_file = new string[]
         {
-            Path.Combine("G:\\","ID_Text_Posts.json"),
-            Path.Combine("G:\\","ID_Href_Posts.json"),
-            Path.Combine("G:\\","ID_Image_Posts.json")
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Text_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Href_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Image_Posts.json")
         };
         static readonly string[] mutex_name = new string[]
         {
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
-            @"Global\File_Id_Image"
+            @"Global\File_Id_Image",
+            //@"Global\Sync_Processes"
         };
+        static Barrier BarrierRefresh = new Barrier(4);
+        static Barrier[] Barrier_File = new Barrier[]
+        {
+            new Barrier(2),
+            new Barrier(2),
+            new Barrier(2)
+        };
+        static readonly string[] eventwaithandle_name = new string[]
+        {
+            @"Global\Sync_Aplication",
+            @"Global\Sync_Service"
+        };
+        static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static System.Timers.Timer timer = new System.Timers.Timer()
+        {
+            Interval = 5000
+        };
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch(AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
         static Thread thread_text;
         static Thread thread_href;
         static Thread thread_image;
@@ -47,6 +78,7 @@ namespace Thread_OS
         {
             //StartService("Service_read_file");
             //SharedMemory();
+            timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
             #region Подключение хром драйвера
             PathBrowserUserData pathBrowserUserData = new PathBrowserUserData("config.json");
             ChromeOptions options = new ChromeOptions
@@ -63,10 +95,19 @@ namespace Thread_OS
                 for (int i = 0; i < 2; i++)
                 {
                     //SharedMemory();
+                    CheckorCreateEventWaitHandle();
+                    timer.Start();
+                    eventWaitHandle[0].WaitOne();
+                    timer.Stop();
                     CheckorCreateMutex();
                     thread_post = Thread_Post(chromeDriver);
                     thread_post.Start();
                     thread_post.Join();
+                    if(new ServiceController("Service_read_file").Status.Equals(ServiceControllerStatus.Running))
+                    {
+                        eventWaitHandle[0].Reset();
+                        eventWaitHandle[1].Set();
+                    }
                     //chromeDriver.Navigate().Refresh();
                 }
             }
@@ -103,28 +144,30 @@ namespace Thread_OS
             new Thread(() =>
             {
                 List<ID_Text_Post> iD_Text_Posts;
-                lock (locker[0])
-                {   
-                    ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                //lock (locker[0])
+                //{   
+                Barrier_File[0].SignalAndWait();
+                CheckAbandonedMutex(mutex[0]);
+                ReadinFile<ID_Text_Post>(path_file[0], out iD_Text_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
+                {
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    try
                     {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Text_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        try
-                        {
-                            iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
-                        }
-                        catch (Exception)
-                        {
-                            iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
-                        }
+                        iD_Text_Posts.Add(new ID_Text_Post(id_post, feed_row.FindElement(By.ClassName("wall_post_text")).Text));
+                    }
+                    catch (Exception)
+                    {
+                        iD_Text_Posts.Add(new ID_Text_Post(id_post, null));
                     }
                 }
-                mutex[0].WaitOne();
+                //}
                 WriteinFile(path_file[0], new List<ID_Text_Post>(iD_Text_Posts));
                 mutex[0].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Text_Posts.Clear();               
             })
             { Name = "Sort_Text" };
@@ -132,21 +175,23 @@ namespace Thread_OS
             new Thread(()=>
             {    
                 List<ID_Href_Or_Image_Post> iD_Href_Posts;
-                lock (locker[1])
+                //lock (locker[1])
+                //{
+                Barrier_File[1].SignalAndWait();
+                CheckAbandonedMutex(mutex[1]);
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
-                    ReadinFile<ID_Href_Or_Image_Post>(path_file[1], out iD_Href_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
-                    {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
-                    }
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Href_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    iD_Href_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "a", "href"));
                 }
-                mutex[1].WaitOne();
+                //}
                 WriteinFile(path_file[1], new List < ID_Href_Or_Image_Post >(iD_Href_Posts));
                 mutex[1].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Href_Posts.Clear();             
             })
             { Name = "Sort_Href" };
@@ -154,21 +199,23 @@ namespace Thread_OS
             new Thread(()=>
             {  
                 List<ID_Href_Or_Image_Post> iD_Image_Posts;
-                lock (locker[2])
+                //lock (locker[2])
+                //{
+                Barrier_File[2].SignalAndWait();
+                CheckAbandonedMutex(mutex[2]);
+                ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
+                string id_post;
+                foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
                 {
-                    ReadinFile<ID_Href_Or_Image_Post>(path_file[2], out iD_Image_Posts);
-                    string id_post;
-                    foreach (IWebElement feed_row in feed_row_list as List<IWebElement>)
-                    {
-                        id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
-                        if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
-                            continue;
-                        iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
-                    }
+                    id_post = feed_row.FindElement(By.TagName("div")).GetAttribute("id");// FindElement(By.TagName("div")) можно выкинуть
+                    if (iD_Image_Posts.Exists(p => p.Id.Equals(id_post)))
+                        continue;
+                    iD_Image_Posts.Add(new ID_Href_Or_Image_Post(id_post, feed_row, "img", "src", "a", "aria-label"));
                 }
-                mutex[2].WaitOne();
+                //}
                 WriteinFile(path_file[2], new List<ID_Href_Or_Image_Post>(iD_Image_Posts));
                 mutex[2].ReleaseMutex();
+                BarrierRefresh.SignalAndWait();
                 iD_Image_Posts.Clear();
             })
             { Name = "Sort_Image" };
@@ -203,18 +250,19 @@ namespace Thread_OS
                 //thread_text.Join();
                 //thread_href.Join();
                 //thread_image.Join();
-                lock(locker[0])
-                    lock(locker[1])
-                        lock(locker[2])
-                            (chromeDriver as ChromeDriver).Navigate().Refresh();
+                //lock(locker[0])
+                //    lock(locker[1])
+                //        lock(locker[2])
+                BarrierRefresh.SignalAndWait();
+                (chromeDriver as ChromeDriver).Navigate().Refresh();
         })
         { Name = "Find_Post" };
         private static Thread Thread_Read()=>
             new Thread(()=>
             {
-                mutex[0].WaitOne();
-                mutex[1].WaitOne();
-                mutex[2].WaitOne();
+                CheckAbandonedMutex(mutex[0]);
+                CheckAbandonedMutex(mutex[1]);
+                CheckAbandonedMutex(mutex[2]);
                 for (int i = 0; i<path_file.Length; i++) //foreach (string path in path_file)
                 {
                     //mutex[i].WaitOne();
@@ -231,6 +279,9 @@ namespace Thread_OS
                 mutex[0].ReleaseMutex();
                 mutex[1].ReleaseMutex();
                 mutex[2].ReleaseMutex();
+                Barrier_File[0].SignalAndWait();
+                Barrier_File[1].SignalAndWait();
+                Barrier_File[2].SignalAndWait();
             })
             { Name = "Read_File" };
         private static void StartService(string serviceName)
@@ -265,8 +316,22 @@ namespace Thread_OS
         private static void CheckorCreateMutex()
         {
             for (int i = 0; i < mutex_name.Length; i++)
-                if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
-                    mutex[i] = new Mutex(false, mutex_name[i]);
+                mutex[i] = new Mutex(false, mutex_name[i]);
+        }
+        private static void CheckorCreateEventWaitHandle()
+        {
+            if(!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0],out eventWaitHandle[0]))
+                eventWaitHandle[0] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[0]);
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
+                eventWaitHandle[1] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[1]);
+        }
+        private static void OnTimer(object sender, System.Timers.ElapsedEventArgs args)
+        {
+            if (!new ServiceController("Service_read_file").Status.Equals(ServiceControllerStatus.Running))
+            {
+                eventWaitHandle[1].Reset();
+                eventWaitHandle[0].Set();
+            }
         }
     }
 }

@@ -29,14 +29,35 @@ namespace Service_read_file_parser
         {
             @"Global\File_Id_Text",
             @"Global\File_Id_Href",
-            @"Global\File_Id_Image"
+            @"Global\File_Id_Image",
+            //@"Global\Sync_Processes"
         };
         static readonly string[] path_file = new string[]
         {
-            Path.Combine("G:\\","ID_Text_Posts.json"),
-            Path.Combine("G:\\","ID_Href_Posts.json"),
-            Path.Combine("G:\\","ID_Image_Posts.json")
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Text_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Href_Posts.json"),
+            Path.Combine(@"C:\Users\USER\Desktop\Thread-OS","ID_Image_Posts.json")
         };
+        static readonly string[] eventwaithandle_name = new string[]
+        {
+            @"Global\Sync_Aplication",
+            @"Global\Sync_Service"
+        };
+        static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch (AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
+        static private int Count_Thread = 0;
+        static private object locker = new object();
         //MemoryMappedFile mmf;
         private readonly System.Timers.Timer timer = new System.Timers.Timer()
         {
@@ -90,7 +111,6 @@ namespace Service_read_file_parser
         }
         private void OnTimer(object sender, ElapsedEventArgs args)
         {
-            eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
             #region
             //if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
             //{
@@ -118,13 +138,42 @@ namespace Service_read_file_parser
             #endregion
             try
             {
-                for (int i = 0; i < mutex_name.Length; i++)
+                CheckorCreateEventWaitHandle();
+                if (Count_Thread.Equals(0))
                 {
-                    if (!Mutex.TryOpenExisting(mutex_name[i], out mutex[i]))
+                    Count_Thread = 1;
+                    eventLogService.WriteEntry("Start read file", EventLogEntryType.Information, ++eventId);
+
+                    for (int i = 0; i < mutex_name.Length; i++)
+                    {
                         mutex[i] = new Mutex(false, mutex_name[i]);
-                    eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
-                    Thread_Read(mutex[i], path_file[i]).Start();
-                } 
+                        eventLogService.WriteEntry($"Mutex {mutex_name[i]} find or create", EventLogEntryType.Information, eventId);
+                        Thread_Read(mutex[i], path_file[i]).Start();
+                        eventLogService.WriteEntry($"Start {i} thread", EventLogEntryType.Information, eventId);
+                    }
+                }
+                else if (Count_Thread.Equals(4))
+                {
+                    if (!Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+                    {
+                        eventWaitHandle[1].Reset();
+                        eventWaitHandle[0].Set();
+                    }
+                    Count_Thread = 0;
+                    eventLogService.WriteEntry($"Finish work threads", EventLogEntryType.Information, eventId);
+                }
+                else
+                {
+                    if (Process.GetProcessesByName("Thread-OS").Count().Equals(0))
+                    {
+                        eventWaitHandle[0].Reset();
+                        eventWaitHandle[1].Set();
+                        eventLogService.WriteEntry($"Aplication not start", EventLogEntryType.Information, eventId);
+                        return;
+                    }
+                    eventLogService.WriteEntry($"Expect Aplication", EventLogEntryType.Information, eventId);
+                    return;
+                }  
             }
             catch (Exception ex)
             {
@@ -134,7 +183,8 @@ namespace Service_read_file_parser
         private  Thread Thread_Read(Mutex mutex, string path) =>
            new Thread(() =>
            {
-               mutex.WaitOne();
+               eventWaitHandle[1].WaitOne();
+               CheckAbandonedMutex(mutex);
                try
                {
                    if (File.Exists(path))
@@ -152,7 +202,27 @@ namespace Service_read_file_parser
                    eventLogService.WriteEntry(ex.Message, EventLogEntryType.Error, eventId);
                }
                mutex.ReleaseMutex();
+               lock (locker)
+                   Count_Thread += 1;
+
            })
            { Name = $"Read_File{path}" };
+        private void CheckorCreateEventWaitHandle()
+        {
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[0], out eventWaitHandle[0]))
+            {
+                EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid,null),//S-1-1-0
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
+                eventWaitHandle[0] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[0], out _, eventWaitHandleSecurity);
+            }
+            if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
+            {
+                EventWaitHandleSecurity eventWaitHandleSecurity = new EventWaitHandleSecurity();
+                eventWaitHandleSecurity.AddAccessRule(new EventWaitHandleAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),//S-1-1-0
+                    EventWaitHandleRights.Synchronize | EventWaitHandleRights.Modify, AccessControlType.Allow));
+                eventWaitHandle[1] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[1], out _, eventWaitHandleSecurity);
+            }
+        }
     }
 }
