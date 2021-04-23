@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Thread-OS", "Thread-OS\Thre
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Service read file parser", "Service read file parser\Service read file parser.csproj", "{04B0091E-FEB3-48AA-970F-BDD44DBE3605}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DMA", "DMA\DMA.csproj", "{EB055CC1-0884-49A7-84CE-46B496031BA4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DMA", "DMA\DMA.csproj", "{980327DC-7D3B-4D93-9978-E01BE5832E5A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +23,10 @@ Global
 		{04B0091E-FEB3-48AA-970F-BDD44DBE3605}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{04B0091E-FEB3-48AA-970F-BDD44DBE3605}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{04B0091E-FEB3-48AA-970F-BDD44DBE3605}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EB055CC1-0884-49A7-84CE-46B496031BA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EB055CC1-0884-49A7-84CE-46B496031BA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EB055CC1-0884-49A7-84CE-46B496031BA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EB055CC1-0884-49A7-84CE-46B496031BA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{980327DC-7D3B-4D93-9978-E01BE5832E5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{980327DC-7D3B-4D93-9978-E01BE5832E5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{980327DC-7D3B-4D93-9978-E01BE5832E5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{980327DC-7D3B-4D93-9978-E01BE5832E5A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
