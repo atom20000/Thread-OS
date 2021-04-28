@@ -21,7 +21,9 @@ namespace DMA
         static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
         static void Main(string[] args)
         {
-            for (int i = -1; Menu(i); i++);
+            if (!File.Exists(File_path))
+                File.Create(File_path).Close();
+            for (int i = 0; Menu(i); i++);
         }
         static bool Menu(int Id_process)
         {
@@ -50,7 +52,9 @@ namespace DMA
             CheckorCreateEventWaitHandle();
             eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
-            var table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
+            JArray table = JsonConvert.DeserializeObject<JArray>(File.ReadAllText(File_path));
+            if (table == null)
+                table = new JArray();
             table.Add( new JObject
             {
                 {"Process_id", (int)Id_process},
@@ -60,12 +64,13 @@ namespace DMA
             );
             File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
             mutex.ReleaseMutex();
-            eventWaitHandle[0].Reset();
-            eventWaitHandle[1].Set();
-            eventWaitHandle[0].WaitOne();
+            //eventWaitHandle[0].Reset();
+            //eventWaitHandle[1].Set();
+            //eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
             table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
-            //table.ToList().Find(el => el.Process_id.Equals(Id_process));
+            var t = table.Children().Where(el => el.Children().First().Children().Select(el => el.ToObject<int>().Equals(Id_process)).Count().Equals(1));
+            File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
             //Добавить ожидание выполнение завершения процесса и удаление записи из файла и вывод на экран результата
         }
         static void Printer(object Id_process)
