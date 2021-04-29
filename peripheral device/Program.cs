@@ -3,12 +3,14 @@ using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace peripheral_device
 {
     class Program
     {
-        static readonly string File_path = "DMA.json";
+        static readonly string File_path = @"G:\Репозитории\Thread-OS\DMA.json";
         static readonly string Mutex_name = "DMA_file";
         static readonly string[] eventwaithandle_name = new string[]
         {
@@ -24,17 +26,21 @@ namespace peripheral_device
                 eventWaitHandle[1].WaitOne();
                 Mutex mutex = new Mutex(false, Mutex_name);
                 mutex.WaitOne();
-                var table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
+                if (!File.Exists(File_path))
+                    File.Create(File_path).Close();
+                List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
+                if (table == null)
+                    table = new List<JToken>();
                 foreach (var elem in table)
                 {
-                    switch (elem.Code_operation)
+                    switch (elem.Children().ElementAt(1).Children().First().ToObject<int>())
                     {
                         case (0):
                             Console.WriteLine("Введите данные с клавиатуры");
                             elem["Result"] = Console.ReadLine();
                             break;
                         case (1):
-                            Console.WriteLine($"Печать с принтера: {elem.Result}");
+                            Console.WriteLine($"Печать с принтера: {elem.Children().ElementAt(2).First().ToString()}");
                             break;
                     }  
                 }

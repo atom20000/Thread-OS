@@ -11,7 +11,7 @@ namespace DMA
 {
     class Program
     {
-        static readonly string File_path="DMA.json";
+        static readonly string File_path= @"G:\Репозитории\Thread-OS\DMA.json";
         static readonly string Mutex_name = "DMA_file";
         static readonly string[] eventwaithandle_name = new string[]
         {
@@ -27,7 +27,7 @@ namespace DMA
         }
         static bool Menu(int Id_process)
         {
-            Console.WriteLine("1. Клавиатура \n2. Принтер \n3.Выход");
+            Console.WriteLine("1. Клавиатура \n2. Принтер \n3. Выход");
             int way;
             if (!int.TryParse(Console.ReadLine(), out way))
                 return true;
@@ -52,25 +52,28 @@ namespace DMA
             CheckorCreateEventWaitHandle();
             eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
-            JArray table = JsonConvert.DeserializeObject<JArray>(File.ReadAllText(File_path));
+            List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
             if (table == null)
-                table = new JArray();
+                table = new List<JToken>();
             table.Add( new JObject
             {
                 {"Process_id", (int)Id_process},
                 {"Code_operation", 0},
                 {"Result", null}
+                //МБ добавить bool для подтверждения
             }
             );
             File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
             mutex.ReleaseMutex();
-            //eventWaitHandle[0].Reset();
-            //eventWaitHandle[1].Set();
-            //eventWaitHandle[0].WaitOne();
+            eventWaitHandle[0].Reset();
+            eventWaitHandle[1].Set();
+            eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
-            table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
-            var t = table.Children().Where(el => el.Children().First().Children().Select(el => el.ToObject<int>().Equals(Id_process)).Count().Equals(1));
+            table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
+            Console.WriteLine($"Id process:{Id_process} вывод {table.Find(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process)).ElementAt(2).Children().First().ToString()}");
+            table.RemoveAll(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process));
             File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
+            mutex.ReleaseMutex();
             //Добавить ожидание выполнение завершения процесса и удаление записи из файла и вывод на экран результата
         }
         static void Printer(object Id_process)
@@ -80,12 +83,15 @@ namespace DMA
             CheckorCreateEventWaitHandle();
             eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
-            var table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
+            List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
+            if (table == null)
+                table = new List<JToken>();
             table.Add(new JObject
             {
                 {"Process_id", (int)Id_process},
                 {"Code_operation", 1},
                 {"Result", Console.ReadLine()}
+                //МБ добавить bool для подтверждения
             }
             );
             File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
@@ -94,7 +100,11 @@ namespace DMA
             eventWaitHandle[1].Set();
             eventWaitHandle[0].WaitOne();
             mutex.WaitOne();
-            table = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(File_path));
+            table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
+            Console.WriteLine($"Id process:{Id_process} Печать завершена");
+            table.RemoveAll(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process));
+            File.WriteAllText(File_path, JsonConvert.SerializeObject(table, Formatting.Indented));
+            mutex.ReleaseMutex();
             //Добавить ожидание выполнение завершения процесса и удаление записи из файла
         }
         private static void CheckorCreateEventWaitHandle()
