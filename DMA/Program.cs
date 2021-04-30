@@ -6,6 +6,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Linq;
+using System.Diagnostics;
 
 namespace DMA
 {
@@ -19,11 +20,43 @@ namespace DMA
             "Pepheral device"
         };
         static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch (AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
+        static System.Timers.Timer timer = new System.Timers.Timer()
+        {
+            Interval = 5000
+        };
         static void Main(string[] args)
         {
+            timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
+            if (Process.GetProcessesByName("peripheral device").Count().Equals(0))
+            {
+                Console.WriteLine("Запустите перефирийные устройства");
+                Console.ReadLine();
+                return;
+            }
             if (!File.Exists(File_path))
                 File.Create(File_path).Close();
-            for (int i = 0; Menu(i); i++);
+            File.WriteAllText(File_path, JsonConvert.SerializeObject(null, Formatting.Indented));
+            for (int i = 0; Menu(i); i++)
+            {
+                if (Process.GetProcessesByName("peripheral device").Count().Equals(0))
+                {
+                    Console.WriteLine("Запустите перефирийные устройства");
+                    Console.ReadLine();
+                    return;
+                }
+            }
         }
         static bool Menu(int Id_process)
         {
@@ -51,7 +84,7 @@ namespace DMA
             Mutex mutex = new Mutex(false, Mutex_name);
             CheckorCreateEventWaitHandle();
             eventWaitHandle[0].WaitOne();
-            mutex.WaitOne();
+            CheckAbandonedMutex(mutex);
             List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
             if (table == null)
                 table = new List<JToken>();
@@ -67,8 +100,10 @@ namespace DMA
             mutex.ReleaseMutex();
             eventWaitHandle[0].Reset();
             eventWaitHandle[1].Set();
+            timer.Start();
             eventWaitHandle[0].WaitOne();
-            mutex.WaitOne();
+            timer.Stop();
+            CheckAbandonedMutex(mutex);
             table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
             Console.WriteLine($"Id process:{Id_process} вывод {table.Find(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process)).ElementAt(2).Children().First().ToString()}");
             table.RemoveAll(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process));
@@ -82,10 +117,11 @@ namespace DMA
             Mutex mutex = new Mutex(false, Mutex_name);
             CheckorCreateEventWaitHandle();
             eventWaitHandle[0].WaitOne();
-            mutex.WaitOne();
+            CheckAbandonedMutex(mutex);
             List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
             if (table == null)
                 table = new List<JToken>();
+            Console.WriteLine("Что печатаем?\n");
             table.Add(new JObject
             {
                 {"Process_id", (int)Id_process},
@@ -98,8 +134,10 @@ namespace DMA
             mutex.ReleaseMutex();
             eventWaitHandle[0].Reset();
             eventWaitHandle[1].Set();
+            timer.Start();
             eventWaitHandle[0].WaitOne();
-            mutex.WaitOne();
+            timer.Stop();
+            CheckAbandonedMutex(mutex);
             table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
             Console.WriteLine($"Id process:{Id_process} Печать завершена");
             table.RemoveAll(el => el.Children().First().Children().First().ToObject<int>().Equals(Id_process));
@@ -113,6 +151,14 @@ namespace DMA
                 eventWaitHandle[0] = new EventWaitHandle(true, EventResetMode.ManualReset, eventwaithandle_name[0]);
             if (!EventWaitHandle.TryOpenExisting(eventwaithandle_name[1], out eventWaitHandle[1]))
                 eventWaitHandle[1] = new EventWaitHandle(false, EventResetMode.ManualReset, eventwaithandle_name[1]);
+        }
+        private static void OnTimer(object sender, System.Timers.ElapsedEventArgs args)
+        {
+            if (Process.GetProcessesByName("peripheral device").Count().Equals(0))
+            {
+                eventWaitHandle[1].Reset();
+                eventWaitHandle[0].Set();
+            }
         }
     }
 }

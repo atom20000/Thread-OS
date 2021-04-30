@@ -18,6 +18,18 @@ namespace peripheral_device
             "Pepheral device"
         };
         static public EventWaitHandle[] eventWaitHandle = new EventWaitHandle[2];
+        static Action<Mutex> CheckAbandonedMutex = new Action<Mutex>((mutex) =>
+        {
+            try
+            {
+                mutex.WaitOne();
+            }
+            catch (AbandonedMutexException)
+            {
+                mutex.ReleaseMutex();
+                mutex.WaitOne();
+            }
+        });
         static void Main(string[] args)
         {
             while (true)
@@ -25,7 +37,7 @@ namespace peripheral_device
                 CheckorCreateEventWaitHandle();
                 eventWaitHandle[1].WaitOne();
                 Mutex mutex = new Mutex(false, Mutex_name);
-                mutex.WaitOne();
+                CheckAbandonedMutex(mutex);
                 if (!File.Exists(File_path))
                     File.Create(File_path).Close();
                 List<JToken> table = JsonConvert.DeserializeObject<List<JToken>>(File.ReadAllText(File_path));
