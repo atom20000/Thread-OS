@@ -12,7 +12,7 @@ namespace DMA
 {
     class Program
     {
-        static readonly string File_path= @"G:\Репозитории\Thread-OS\DMA.json";
+        static readonly string File_path= @"C:\Users\USER\Desktop\Thread-OS\DMA.json";
         static readonly string Mutex_name = "DMA_file";
         static readonly string[] eventwaithandle_name = new string[]
         {
